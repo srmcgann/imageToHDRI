@@ -178,8 +178,6 @@
     </script>
   </body>
   <script>
-    //window.can = document.createElement('canvas')
-    //window.canx = window.can.getContext('webgl2')
     c = document.querySelector('#c')
     c.tabIndex = 0
     x_ = c.getContext('2d')
@@ -2502,13 +2500,20 @@
           }
         }
         
+        
+        if(location.href.indexOf('url=') != -1){
+          urlProvided = true
+          textInputValue = decodeURIComponent(location.href.split('url=')[1].split('&')[0])
+        }else{
+          urlProvided = false
+          textInputValue = ''
+        }
         init = () => {
           
           outputRes = 1
           
           textInputHover = false
           textInputHasFocus = true
-          textInputValue = ''
           cursorpos = textInputValue.length
           cursorblink = false
           keyRepeatTimer = 0
@@ -2616,6 +2621,8 @@
           c.style.display = 'block'
           rsz()
         }
+        
+        if(urlProvided) window.attemptFetch()
       }
 
       cls()
