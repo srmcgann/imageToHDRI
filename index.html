@@ -2,6 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="https://srmcgann.github.io/ultratemp3/favicon.png">
     <title>image -> HDRI [tool]</title>
     <style>
       body, html{
@@ -23,10 +24,30 @@
       canvas:focus{
         outline: none;
       }
+      #container{
+        display: none;
+      }
+      #closeButton:focus{
+        outline: none;
+      }
+      #closeButton{
+        cursor: pointer;
+        display: none;
+        border: 2px solid #400;
+        border-radius: 10px;
+        background: #601;
+        font-family: 24px monospace;
+        color: #f88;
+        padding: 2px;
+        position: absolute;
+      }
     </style>
   </head>
   <body>
     <div id="container"></div>
+    <button id="closeButton" onclick="hideHDRI()" title="close HDRI preview [ESC]">
+      &nbsp;&nbsp;close ❌ &nbsp;&nbsp;
+    </button>
     <canvas id=c></canvas>
     <script type="module">
       import * as THREE from 'https://threejs.org/build/three.module.js'
@@ -48,7 +69,6 @@
         delta += e.deltaY/25
         camera.fov = Math.min(140, Math.max(10, delta))
         camera.updateProjectionMatrix()
-        
       }
 
       var material, loadScene, texture, sceneLoaded = false, geometry
@@ -61,8 +81,9 @@
           scene = new THREE.Scene()
           geometry = new THREE.SphereGeometry( 1e4, 64, 240 )
           geometry.scale( - 1, 1, 1 )
-          
-          texture = new THREE.CanvasTexture(c)
+          //window.downloadBuffer.width = 2048
+          //window.downloadBuffer.height = 1024
+          texture = new THREE.CanvasTexture(window.downloadBuffer)
           
           /*
           if(url.toLowerCase().indexOf('.mp4') != -1 ||
@@ -95,8 +116,9 @@
         }
         
         renderer = new THREE.WebGLRenderer()
+        window.can = renderer.domElement
         renderer.setSize( 1920, 1080 )
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setPixelRatio(window.devicePixelRatio)
         renderer.setAnimationLoop( animate )
         container.appendChild( renderer.domElement )
         document.addEventListener( 'pointerdown', onPointerDown )
@@ -156,6 +178,8 @@
     </script>
   </body>
   <script>
+    //window.can = document.createElement('canvas')
+    //window.canx = window.can.getContext('webgl2')
     c = document.querySelector('#c')
     c.tabIndex = 0
     x_ = c.getContext('2d')
@@ -175,6 +199,12 @@
     showRender = false   // actual pipe to environment, for render eval etc
     showPreview = true // thumbnail in upper right 
     // (only visible in default or HDRI output, not render)
+
+    downloadBuffer         = document.createElement('canvas')
+    dctx                   = downloadBuffer.getContext('2d')
+    downloadBuffer.style.display = 'none'
+    downloadBuffer.style.position = 'absolute'
+    document.body.appendChild(downloadBuffer)
 
     if(showRender){
       outputAspectRatio = 2
@@ -209,7 +239,7 @@
     t = 0
     T = Math.tan
 
-    rsz = window.onresize = () =>{
+    rsz = window.onresize = () => {
       let b = document.body
       let margin = showOutput ? 10 : 10
       let n
@@ -217,9 +247,9 @@
       c.style.borderRadius = showOutput ? '0' : '10px'
       c.style.border = showOutput ? 'none' : '3px solid #fff3'
       //c.width = 1920 
-      c.height = c.width * d
-      output.width = c.width
-      output.height = output.width * d
+      //c.height = c.width * d
+      //output.width = c.width
+      //output.height = output.width * d
       if(b.clientHeight/b.clientWidth > d){
         c.style.width = `${(n=b.clientWidth) - margin*2}px`
         c.style.height = `${n*d - margin*2}px`
@@ -243,6 +273,7 @@
     textInputHasFocus = false
     otherAllowedKeys = [107,109,106,111,191,190,188,222,186,220,221,219,187,189,192]
     window.onkeydown = e => {
+      if(e.keyCode == 27 && showRender) hideHDRI()
       if(e.ctrlKey || e.altKey) {
         if(e.ctrlKey && e.keyCode == 86){
           navigator.clipboard.readText().then(data=>{
@@ -324,6 +355,40 @@
       }
     }
 
+    window.addEventListener('resize', rsz2 = () => {
+      if(typeof can != 'undefined'){
+        can.tabindex = 0
+        can.focus()
+        let b = document.body
+        let margin = 10
+        let n
+        let d = .5625
+        can.style.borderRadius = '10px'
+        can.style.border = '3px solid #fff3'
+        if(b.clientHeight/b.clientWidth > d){
+          can.style.width = `${(n=b.clientWidth) - margin*2}px`
+          can.style.height = `${n*d - margin*2}px`
+        }else{
+          can.style.height = `${(n=b.clientHeight) - margin*2}px`
+          can.style.width = `${n/d - margin*2}px`
+        }
+        if(showRender){
+          closeButton = document.querySelector('#closeButton')
+          closeButton.style.display = 'inline-block'
+          let rect = window.can.getBoundingClientRect()
+          closeButton.style.left = (rect.left + 10) + 'px'
+          closeButton.style.top = (rect.top + 10) + 'px'
+        }
+      }
+      if(showRender){
+        showRender = false
+        setTimeout(()=>{
+          showRender = true
+        }, 0)
+      }
+    })
+    for(let i=10;i--;) setTimeout(()=>{rsz2(), rsz()}, i*60)
+
     window.addEventListener('resize', rsz2 = () =>{
       can = document.querySelectorAll('canvas')[0]
       if(typeof can != 'undefined'){
@@ -353,7 +418,6 @@
       }
     })
     for(let i=10;i--;) setTimeout(()=>{rsz2(), rsz()}, i*60)
-
     async function Draw(){
       if(!t){
         X     = Y     = Z     = 0
@@ -2049,7 +2113,6 @@
             }
           }*/
         }
-        
           
         mousedown           = false
         buttons             = []//setAI ? buttons : []
@@ -2365,6 +2428,7 @@
         }
         
         convertImage = () => {
+          imageFinished = false
           sctx.clearRect(0,0,scratch.width,scratch.height)
           dctx.clearRect(0,0,downloadBuffer.width,downloadBuffer.height)
           scratchBuffer.width = scratch.width = imageFile.width * outputRes
@@ -2451,8 +2515,6 @@
           keyRepeatInterval = 20
           multiRepeat = false
 
-          downloadBuffer         = document.createElement('canvas')
-          dctx                   = downloadBuffer.getContext('2d')
           downloadBuffer.width   = 2048 / 1
           downloadBuffer.height  = 1024 / 1
           imageFile = new Image()
@@ -2461,7 +2523,7 @@
           processing = false
           scratchPosition = 0
           scratch = document.createElement('canvas')
-          sctx = scratch.getContext('2d')
+          sctx = scratch.getContext('2d', {willReadFrequently: true})
           scratchBuffer  = document.createElement('canvas')
           sbctx = scratchBuffer.getContext('2d', {willReadFrequently: true})
           scratchInterval = 5e4
@@ -2520,6 +2582,39 @@
               convertImage()
             }
           })
+        }
+        
+        viewHDRI = () => {
+          showOutput = false
+          showRender = true
+          let can = window.can
+          if(typeof can != 'undefined') {
+            outputAspectRatio = 2
+            showOutput = true
+            showPreview = false
+            container = document.querySelector('#container')
+            container.style.display = 'block'
+            //can.style.background = '#f00'
+            can.style.display = 'block'
+            can.className = 'threecan'
+            c.style.display = 'none'
+            rsz2()
+          }
+        }
+        
+        hideHDRI = () => {
+          let closeButton = document.querySelector('#closeButton')
+          closeButton.style.display = 'none'
+          showOutput = true
+          showRender = false
+          container = document.querySelector('#container')
+
+          showOutput = false
+          showPreview = true
+          if(typeof can != 'undefined') can.style.display = 'none'
+          container.style.display = 'none'
+          c.style.display = 'block'
+          rsz()
         }
       }
 
@@ -2617,7 +2712,7 @@
 
           // upper right (output)
           if(imageFinished || processing){
-            if(processing){
+            if(!imageFinished && processing){
               processImage()
               dctx.drawImage(scratch,0,0,downloadBuffer.width,downloadBuffer.height)
             }
@@ -2690,7 +2785,6 @@
         tx_.stroke()
       }
       
-      
       x_.fillStyle = '#123'
       x_.fillRect(0,0,c.width/2,c.height)
       x_.drawImage(tempBuffer2, 0,0,c.width,c.height)
@@ -2706,8 +2800,8 @@
       x_.fillText(str, 960, fs-10)
 
       str = 'output'
-      x_.strokeText(str, 960 + 500, 300)
-      x_.fillText(str, 960 + 500, 300)
+      x_.strokeText(str, 960 + 500, 400)
+      x_.fillText(str, 960 + 500, 400)
       
 
       x_.strokeStyle = '#40f'
@@ -2720,19 +2814,19 @@
       
       buttons = []
       buttonsLoaded = false
-      bct = 0  // must appear before 1st button (for callbacks/ clickability)
+      bct = 0
       s___ = 69
 
-      X = 370 //c.width/2-65 + s___*1
+      X = 370
       Y = 310
-      col = '#0f88'//sortCriteria == 'rowsCompleted' ? '#0f88' : '#0848'
+      col = '#0f88' 
       renderButton('browse 📁', X, Y, '  open file from your device ', 'loadFile()', 'rectangle', '#fff', col, 40)
 
       if(imageLoaded){
         X = 370 + 300 //c.width/2-65 + s___*1
         Y = 310
         col = imageLoaded ? '#f008' : '#4448'
-        renderButton('unload 📁', X, Y, '  uload / remove this image ', imageLoaded ? 'init()' : '', 'rectangle', '#fff', col, 40)
+        renderButton('unload 📁', X, Y, '  unload / remove this image ', imageLoaded ? 'init()' : '', 'rectangle', '#fff', col, 40)
       }else{
         if(placeholderLoaded){
           X1 = c.width - 209*prevScale * 2
@@ -2755,11 +2849,24 @@
         }
       }
       
+      if(showRender){
+        closeButton = document.querySelector('#closeButton')
+        closeButton.style.display = 'inline-block'
+        let rect = window.can.getBoundingClientRect()
+        closeButton.style.left = (rect.left + 10) + 'px'
+        closeButton.style.top = (rect.top + 10) + 'px'
+      }
+      
       if(imageFinished){
-        X = c.width - 475 //c.width/2-65 + s___*1
+        X = c.width - 710
         Y = c.height - 40
-        col = '#0f88'//sortCriteria == 'rowsCompleted' ? '#0f88' : '#0848'
-        renderButton('download PNG ⇩', X, Y, '  download this image ', 'downloadOutput()', 'rectangle', '#fff', col, 40)
+        col = '#0f88'
+        renderButton(' download PNG ⇩ ', X, Y, '  download this image  ', 'downloadOutput()', 'rectangle', '#fff', col, 40)
+        
+        X = c.width - 255
+        Y = c.height - 40
+        col = '#40f8'
+        renderButton(' view as HDRI 🌐 ', X, Y, '  view HDRI  ', 'viewHDRI()', 'rectangle', '#fff', col, 40)
       }
 
       /*
@@ -2805,4 +2912,3 @@
     Draw()
   </script>
 </html>
-
