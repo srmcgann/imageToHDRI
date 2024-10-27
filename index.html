@@ -2497,6 +2497,7 @@
           if(scratchPosition >= scratchData.data.length){
             imageFinished = true
             processing = false
+            if(urlProvided) viewHDRI()
           }
         }
         
@@ -2622,7 +2623,9 @@
           rsz()
         }
         
-        if(urlProvided) window.attemptFetch()
+        if(urlProvided) {
+          window.attemptFetch()
+        }
       }
 
       cls()
