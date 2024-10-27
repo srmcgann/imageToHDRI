@@ -52,8 +52,8 @@
     <script type="module">
       import * as THREE from 'https://threejs.org/build/three.module.js'
       var camera
-      let scene, renderer
-      let isUserInteracting = false,
+      var scene, renderer
+      var isUserInteracting = false,
           lon = 0, lat = 0,
           phi = 0, theta = 0,
           onPointerDownPointerX = 0,
@@ -71,49 +71,46 @@
         camera.updateProjectionMatrix()
       }
 
-      var material, loadScene, texture, sceneLoaded = false, geometry
+      var material, texture, sceneLoaded = false, geometry
 
-      function init(url){
+      window.loadScene = () => {
+        scene = new THREE.Scene()
+        geometry = new THREE.SphereGeometry( 1e4, 64, 240 )
+        geometry.scale( - 1, 1, 1 )
+        
+        texture = new THREE.TextureLoader().load(window.downloadBuffer.toDataURL())
+        //texture = new THREE.CanvasTexture(window.downloadBuffer)
+        
+        /*
+        if(url.toLowerCase().indexOf('.mp4') != -1 ||
+           url.toLowerCase().indexOf('.webm') != -1){
+          const vid = document.createElement('video')
+          vid.muted = true
+          vid.loop = true
+          vid.crossOrigin = true
+          vid.src = url
+          vid.play()
+          texture = new THREE.VideoTexture( vid )
+        }else{
+          texture = new THREE.TextureLoader().load(url)
+        }
+        */
+
+        texture.colorSpace = THREE.SRGBColorSpace
+        texture.anisotropy = renderer.capabilities.getMaxAnisotropy()
+        texture.wrapS = THREE.RepeatWrapping
+        texture.wrapT = THREE.RepeatWrapping
+        texture.repeat.set( 1, 1 )
+        material = new THREE.MeshBasicMaterial( { map: texture } )
+        material.map.minFilter = THREE.LinearFilter
+        const mesh = new THREE.Mesh( geometry, material )
+        scene.add( mesh )
+        sceneLoaded = true
+      }
+
+      window.init = url => {
         const container = document.getElementById( 'container' )
         camera = new THREE.PerspectiveCamera( 100, 16/9, .05, 1e6)
-        
-        loadScene = () =>{
-          scene = new THREE.Scene()
-          geometry = new THREE.SphereGeometry( 1e4, 64, 240 )
-          geometry.scale( - 1, 1, 1 )
-          //window.downloadBuffer.width = 2048
-          //window.downloadBuffer.height = 1024
-          texture = new THREE.CanvasTexture(window.downloadBuffer)
-          
-          /*
-          if(url.toLowerCase().indexOf('.mp4') != -1 ||
-             url.toLowerCase().indexOf('.webm') != -1){
-            const vid = document.createElement('video')
-            vid.muted = true
-            vid.loop = true
-            vid.crossOrigin = true
-            vid.src = url
-            vid.play()
-            texture = new THREE.VideoTexture( vid )
-          }else{
-            texture = new THREE.TextureLoader().load(url)
-            texture.wrapS = THREE.RepeatWrapping
-            texture.wrapT = THREE.RepeatWrapping
-            texture.repeat.set( 1, 1 )
-          }
-          */
-
-          texture.colorSpace = THREE.SRGBColorSpace
-          texture.anisotropy = renderer.capabilities.getMaxAnisotropy()
-            texture.wrapS = THREE.RepeatWrapping
-            texture.wrapT = THREE.RepeatWrapping
-            texture.repeat.set( 1, 1 )
-          material = new THREE.MeshBasicMaterial( { map: texture } )
-          material.map.minFilter = THREE.LinearFilter
-          const mesh = new THREE.Mesh( geometry, material )
-          scene.add( mesh )
-          sceneLoaded = true
-        }
         
         renderer = new THREE.WebGLRenderer()
         window.can = renderer.domElement
@@ -127,7 +124,7 @@
         document.addEventListener( 'touchstart', onPointerDown )
         document.addEventListener( 'touchmove', onPointerMove )
         document.addEventListener( 'touchend', onPointerUp )
-        loadScene()
+        window.loadScene()
       }
 
       function onPointerDown( event ) {
@@ -152,7 +149,7 @@
 
       function animate() {
         if(typeof showRender != 'undefined' && showRender){
-          if(!sceneLoaded) loadScene()
+          if(!sceneLoaded) window.loadScene()
           lat = Math.max( - 89.9, Math.min( 89.9, lat ) )
           phi = ( 90 - lat )/180*Math.PI
           theta = lon/180*Math.PI
@@ -161,19 +158,10 @@
           camera.position.z = distance * Math.sin( phi ) * Math.sin( theta )
           camera.lookAt( 0, 0, 0 )
           renderer.render( scene, camera )
-          material.map.needsUpdate = true
+          //material.map.needsUpdate = true
         }else{
           sceneLoaded = false
         }
-      }
-
-      var url
-      var l = location.href.split('url=')
-      if(l.length>1){
-        url = l[1].split('&')[0]
-        init(url)
-      }else{
-        init('')
       }
     </script>
   </body>
@@ -255,8 +243,46 @@
         c.style.height = `${(n=b.clientHeight) - margin*2}px`
         c.style.width = `${n/d - margin*2}px`
       }
+
+      if(typeof can != 'undefined'){
+        can.tabindex = 0
+        can.focus()
+        let b = document.body
+        let margin = 10
+        let n
+        let d = .5625
+        can.style.borderRadius = '10px'
+        can.style.border = '3px solid #fff3'
+        if(b.clientHeight/b.clientWidth > d){
+          can.style.width = `${(n=b.clientWidth) - margin*2}px`
+          can.style.height = `${n*d - margin*2}px`
+        }else{
+          can.style.height = `${(n=b.clientHeight) - margin*2}px`
+          can.style.width = `${n/d - margin*2}px`
+        }
+        if(showRender){
+          
+          closeButton = document.querySelector('#closeButton')
+          closeButton.style.display = 'inline-block'
+          can.style.display = 'block'
+          if(typeof can != 'undefined' ){
+            let rect = can.getBoundingClientRect()
+            closeButton.style.left = (rect.left + 10) + 'px'
+            closeButton.style.top = (rect.top + 10) + 'px'
+          }
+        }
+      }
+      if(showRender){
+        showRender = false
+        setTimeout(()=>{
+          showRender = true
+        }, 0)
+      }
     }
-    rsz()
+    resizeManual = () =>{
+      for(let i=10;i--;) setTimeout(()=>{rsz()}, i*50)
+    }
+    resizeManual()
 
     keyTimer = 0
     keyTimerInterval = .375
@@ -353,69 +379,6 @@
       }
     }
 
-    window.addEventListener('resize', rsz2 = () => {
-      if(typeof can != 'undefined'){
-        can.tabindex = 0
-        can.focus()
-        let b = document.body
-        let margin = 10
-        let n
-        let d = .5625
-        can.style.borderRadius = '10px'
-        can.style.border = '3px solid #fff3'
-        if(b.clientHeight/b.clientWidth > d){
-          can.style.width = `${(n=b.clientWidth) - margin*2}px`
-          can.style.height = `${n*d - margin*2}px`
-        }else{
-          can.style.height = `${(n=b.clientHeight) - margin*2}px`
-          can.style.width = `${n/d - margin*2}px`
-        }
-        if(showRender){
-          closeButton = document.querySelector('#closeButton')
-          closeButton.style.display = 'inline-block'
-          let rect = window.can.getBoundingClientRect()
-          closeButton.style.left = (rect.left + 10) + 'px'
-          closeButton.style.top = (rect.top + 10) + 'px'
-        }
-      }
-      if(showRender){
-        showRender = false
-        setTimeout(()=>{
-          showRender = true
-        }, 0)
-      }
-    })
-    for(let i=10;i--;) setTimeout(()=>{rsz2(), rsz()}, i*60)
-
-    window.addEventListener('resize', rsz2 = () =>{
-      can = document.querySelectorAll('canvas')[0]
-      if(typeof can != 'undefined'){
-
-        can.tabindex = 0
-        can.focus()
-
-        let b = document.body
-        let margin = 10
-        let n
-        let d = .5625
-        can.style.borderRadius = '10px'
-        can.style.border = '3px solid #fff3'
-        if(b.clientHeight/b.clientWidth > d){
-          can.style.width = `${(n=b.clientWidth) - margin*2}px`
-          can.style.height = `${n*d - margin*2}px`
-        }else{
-          can.style.height = `${(n=b.clientHeight) - margin*2}px`
-          can.style.width = `${n/d - margin*2}px`
-        }
-      }
-      if(showRender){
-        showRender = false
-        setTimeout(()=>{
-          showRender = true
-        }, 0)
-      }
-    })
-    for(let i=10;i--;) setTimeout(()=>{rsz2(), rsz()}, i*60)
     async function Draw(){
       if(!t){
         X     = Y     = Z     = 0
@@ -2509,7 +2472,7 @@
           urlProvided = false
           textInputValue = ''
         }
-        init = () => {
+        let init = () => {
           
           outputRes = 1
           
@@ -2594,18 +2557,18 @@
           showOutput = false
           showRender = true
           let can = window.can
-          if(typeof can != 'undefined') {
+          //if(typeof can != 'undefined') {
+            //can.style.display = 'block'
+            //can.className = 'threecan'
             outputAspectRatio = 2
             showOutput = true
             showPreview = false
             container = document.querySelector('#container')
             container.style.display = 'block'
             //can.style.background = '#f00'
-            can.style.display = 'block'
-            can.className = 'threecan'
             c.style.display = 'none'
-            rsz2()
-          }
+            rsz()
+          //}
         }
         
         hideHDRI = () => {
@@ -2614,13 +2577,13 @@
           showOutput = true
           showRender = false
           container = document.querySelector('#container')
-
           showOutput = false
           showPreview = true
           if(typeof can != 'undefined') can.style.display = 'none'
           container.style.display = 'none'
           c.style.display = 'block'
           rsz()
+          Draw()
         }
         
         if(urlProvided) {
@@ -2862,9 +2825,11 @@
       if(showRender){
         closeButton = document.querySelector('#closeButton')
         closeButton.style.display = 'inline-block'
-        let rect = window.can.getBoundingClientRect()
-        closeButton.style.left = (rect.left + 10) + 'px'
-        closeButton.style.top = (rect.top + 10) + 'px'
+        //let rect = window.can.getBoundingClientRect()
+        //closeButton.style.left = (rect.left + 10) + 'px'
+        //closeButton.style.top = (rect.top + 10) + 'px'
+        window.init()
+        resizeManual()
       }
       
       if(imageFinished){
@@ -2917,7 +2882,7 @@
       }
 
       t+=1/60
-      requestAnimationFrame(Draw)
+      if(!showRender) requestAnimationFrame(Draw)
     }
     Draw()
   </script>
