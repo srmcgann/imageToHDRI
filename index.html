@@ -522,6 +522,11 @@
                         oy = camY - camposY
                         oz = camZ - camposZ
                         p = ((Math.atan2(ox, oz) + Math.PI*2) / Math.PI / 2 + hoff)%1
+                        if(op_ != -1){
+                          if(op_ > .75 && p<.25) p+=1
+                          if(op_ < .25 && p>.75) p-=1
+                        }
+                        op_ = p
                         d = Math.hypot(ox, oy, oz) + .0001
                         q = invertY ? 1-Math.acos(oy / d) / Math.PI : Math.acos(oy / d) / Math.PI
                         HDRIqueue = [...HDRIqueue, [p * output.width, q * output.height]]
@@ -599,122 +604,90 @@
                       if(!showOutput || showPreview || override) x_[func]()
                       if(showOutput || showPreview || override){
                         octx[func]()
-                        split = false
                         HDRIqueue = []
+                        op_ = -1
                       }
                       break
                     case 'stroke':
                       if(!showOutput || showPreview || override) x_[func]()
                       if(showOutput || showPreview || override){
-                        HDRIqueue.map((v, i) => {
-                          if(i){
-                            l1 = (i+HDRIqueue.length-1) % HDRIqueue.length
-                            l2 = (i+HDRIqueue.length) % HDRIqueue.length
-                            X = HDRIqueue[l1][0] > output.width/2 ? HDRIqueue[l1][0] - output.width : HDRIqueue[l1][0]
-                            a_ = [X, HDRIqueue[l1][1]]
-                            X = HDRIqueue[l2][0] > output.width/2 ? HDRIqueue[l2][0] - output.width : HDRIqueue[l2][0]
-                            b = [X, HDRIqueue[l2][1]]
-                            if(Math.abs(a_[0] - b[0]) < output.width/2 &&
-                               ((a_[0]<=0 && b[0] >= 0) ||
-                                (a_[0]>=0 && b[0] <= 0)// ||
-                                //(a_[0]<=0 && b[0] <= 0)
-                              )){
-                              octx.beginPath()
-                              octx.lineTo(...a_)
-                              octx.lineTo(...b)
-                              octx.stroke()
-                            }
-
-                            l1 = (i+HDRIqueue.length-1) % HDRIqueue.length
-                            l2 = (i+HDRIqueue.length) % HDRIqueue.length
-                            X = HDRIqueue[l1][0] < output.width/2 ? HDRIqueue[l1][0] + output.width : HDRIqueue[l1][0]
-                            a_ = [X, HDRIqueue[l1][1]]
-                            X = HDRIqueue[l2][0] < output.width/2 ? HDRIqueue[l2][0] + output.width : HDRIqueue[l2][0]
-                            b = [X, HDRIqueue[l2][1]]
-                            if(Math.abs(a_[0] - b[0]) < output.width/2 &&
-                               ((a_[0] <= output.width && b[0] >= output.width) ||
-                                (a_[0] >= output.width && b[0] <= output.width)// ||
-                                //(a_[0] >= output.width && b[0] >= output.width)
-                              )){
-                              octx.beginPath()
-                              octx.lineTo(...a_)
-                              octx.lineTo(...b)
-                              octx.stroke()
-                            }
+                        for(let m=3; m--;){
+                          let ofx
+                          switch(m){
+                            case 0: ofx = -output.width; break
+                            case 1: ofx = 0; break
+                            case 2: ofx = output.width; break
                           }
-                        })
-                        mt = false
-                        octx.beginPath()
-                        HDRIqueue.map((v, i) => {
-                          l1 = (i+HDRIqueue.length+1) % HDRIqueue.length
-                          l2 = (i+HDRIqueue.length) % HDRIqueue.length
-                          a = [HDRIqueue[l1][0], HDRIqueue[l1][1]]
-                          b = [HDRIqueue[l2][0], HDRIqueue[l2][1]]
-                          if(Math.hypot(a[0] - b[0], a[1] - b[1]) < output.width/2) {
-                            octx.lineTo(a[0], a[1])
-                          }else{
-                            octx.moveTo(a[0], a[1])
-                            mt = true
+                          polyOnBorder = false
+                          onLeft       = false
+                          onRight      = false
+                          outsized     = false
+                          HDRIqueue.map((v, i) => {
+                            if(!outsized){
+                              l1 = i
+                              l2 = (i+1)%HDRIqueue.length
+                              el1 = HDRIqueue[l1]
+                              el2 = HDRIqueue[l2]
+                              if(Math.hypot((el2[0] + ofx) - (el1[0] + ofx), el2[1] - el1[1]) > output.width/1.1) {
+                                outsized = true
+                              }else{
+                                if((el1[0] + ofx >= 0 && el2[0] + ofx < 0) || (el1[0] + ofx >= output.width && el2[0] + ofx < output.width)) polyOnBorder = true
+                              }
+                              X = v[0] + ofx
+                              Y = v[1]
+                              if(X >= output.width) onRight = true
+                              if(X < 0) onLeft  = true
+                            }
+                          })
+                          if(!outsized && (polyOnBorder || !(onRight || onLeft))){
+                            octx.beginPath()
+                            HDRIqueue.map((v, i) => {
+                              octx.lineTo(v[0] + ofx, v[1])
+                            })
+                            octx.stroke()
                           }
-                        })
-                        if(!mt) octx.closePath()
-                        octx.stroke()
+                        }
                       }
                       break
                     case 'fill':
                       if(!showOutput || showPreview || override) x_[func]()
                       if(showOutput || showPreview || override){
-                        HDRIqueue.map((v, i) => {
-                          if(i){
-                            l1 = (i+HDRIqueue.length-1) % HDRIqueue.length
-                            l2 = (i+HDRIqueue.length) % HDRIqueue.length
-                            X = HDRIqueue[l1][0] > output.width/2 ? HDRIqueue[l1][0] - output.width : HDRIqueue[l1][0]
-                            a_ = [X, HDRIqueue[l1][1]]
-                            X = HDRIqueue[l2][0] > output.width/2 ? HDRIqueue[l2][0] - output.width : HDRIqueue[l2][0]
-                            b = [X, HDRIqueue[l2][1]]
-                            if(Math.abs(a_[0] - b[0]) < output.width/2 &&
-                               ((a_[0]<=0 && b[0] >= 0) ||
-                                (a_[0]>=0 && b[0] <= 0))
-                              ){
-                              octx.beginPath()
-                              octx.lineTo(...a_)
-                              octx.lineTo(...b)
-                              octx.fill()
-                            }
-
-                            l1 = (i+HDRIqueue.length-1) % HDRIqueue.length
-                            l2 = (i+HDRIqueue.length) % HDRIqueue.length
-                            X = HDRIqueue[l1][0] < output.width*.75 ? HDRIqueue[l1][0] + output.width : HDRIqueue[l1][0]
-                            a_ = [X, HDRIqueue[l1][1]]
-                            X = HDRIqueue[l2][0] < output.width*.75 ? HDRIqueue[l2][0] + output.width : HDRIqueue[l2][0]
-                            b = [X, HDRIqueue[l2][1]]
-                            if(Math.abs(a_[0] - b[0]) < output.width*2 &&
-                               ((a_[0] <= output.width && b[0] >= output.width) ||
-                                (a_[0] >= output.width && b[0] <= output.width))
-                              ){
-                              octx.beginPath()
-                              octx.lineTo(...a_)
-                              octx.lineTo(...b)
-                              octx.fill()
-                            }
+                        for(let m=3; m--;){
+                          let ofx
+                          switch(m){
+                            case 0: ofx = -output.width; break
+                            case 1: ofx = 0; break
+                            case 2: ofx = output.width; break
                           }
-                        })
-                        mt = false
-                        octx.beginPath()
-                        HDRIqueue.map((v, i) => {
-                          l1 = (i+HDRIqueue.length+1) % HDRIqueue.length
-                          l2 = (i+HDRIqueue.length) % HDRIqueue.length
-                          a = [HDRIqueue[l1][0], HDRIqueue[l1][1]]
-                          b = [HDRIqueue[l2][0], HDRIqueue[l2][1]]
-                          if(Math.hypot(a[0] - b[0], a[1] - b[1]) < output.width/2) {
-                            octx.lineTo(a[0], a[1])
-                          }else{
-                            octx.moveTo(a[0], a[1])
-                            mt = true
+                          polyOnBorder = false
+                          onLeft       = false
+                          onRight      = false
+                          outsized     = false
+                          HDRIqueue.map((v, i) => {
+                            if(!outsized){
+                              l1 = i
+                              l2 = (i+1)%HDRIqueue.length
+                              el1 = HDRIqueue[l1]
+                              el2 = HDRIqueue[l2]
+                              if(Math.hypot((el2[0] + ofx) - (el1[0] + ofx), el2[1] - el1[1]) > output.width/1.1) {
+                                outsized = true
+                              }else{
+                                if((el1[0] + ofx >= 0 && el2[0] + ofx < 0) || (el1[0] + ofx >= output.width && el2[0] + ofx < output.width)) polyOnBorder = true
+                              }
+                              X = v[0] + ofx
+                              Y = v[1]
+                              if(X >= output.width) onRight = true
+                              if(X < 0) onLeft  = true
+                            }
+                          })
+                          if(!outsized && (polyOnBorder || !(onRight || onLeft))){
+                            octx.beginPath()
+                            HDRIqueue.map((v, i) => {
+                              octx.lineTo(v[0] + ofx, v[1])
+                            })
+                            octx.fill()
                           }
-                        })
-                        //if(!mt) octx.closePath()
-                        octx.fill()
+                        }
                       }
                       break
                     default:
